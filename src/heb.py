@@ -1,10 +1,60 @@
 import os
 from random import shuffle
+from typing import Tuple, Dict
+
 import numpy as np
 
 
 def heb_neural_network():
-    train_directory = './statics/characters_train_set/'
+    input_matrix_array, label_matrix_array, label_translator_dict = read_data()
+    w_matrix = np.zeros((input_matrix_array.shape[1], len(label_translator_dict)))
+    for i_index, _ in enumerate(input_matrix_array):
+        expected_vector = label_matrix_array[i_index:i_index + 1]
+        delta_w = np.matmul(np.transpose(input_matrix_array[i_index:i_index + 1]), expected_vector)
+        w_matrix += delta_w
+
+    total, right_prediction, wrong_prediction = guess_result(input_matrix_array, label_matrix_array, w_matrix)
+
+    print(right_prediction / total)
+    print(wrong_prediction / total)
+
+    input_matrix_array, label_matrix_array, label_translator_dict = read_data('characters_test_set/')
+
+    total, right_prediction, wrong_prediction = guess_result(input_matrix_array, label_matrix_array, w_matrix)
+
+    print(right_prediction / total)
+    print(wrong_prediction / total)
+
+
+def guess_result(input_matrix_array, label_matrix_array, w_matrix) -> Tuple:
+    total = 0
+    right_prediction = 0
+    wrong_prediction = 0
+    for i_index in range(input_matrix_array.shape[0]):
+        input_vector = input_matrix_array[i_index:i_index + 1]
+        predict_matrix = np.matmul(input_vector, w_matrix)
+        predict_vector = predict_matrix[0]
+        for i in range(len(predict_vector)):
+            if predict_vector[i] < 0:
+                predict_vector[i] = -1
+            elif predict_vector[i] > 0:
+                predict_vector[i] = 1
+            else:
+                predict_vector[i] = 0
+        total += 1
+        if (predict_vector == label_matrix_array[i_index]).all():
+            right_prediction += 1
+        else:
+            wrong_prediction += 1
+    return total, right_prediction, wrong_prediction
+
+
+def read_data(directory=None) -> Tuple[np.array, np.array, Dict]:
+    static_directory = './statics/'
+    if directory is None:
+        train_directory = static_directory + 'characters_train_set/'
+    else:
+        train_directory = static_directory + directory
     data_list = list()
     label_list = list()
     data_translator_dict = {
@@ -20,7 +70,6 @@ def heb_neural_network():
         'J': 5,
         'K': 6,
     }
-
     os_listdir = os.listdir(train_directory)
     shuffle(os_listdir)
     for filename in os_listdir:
@@ -42,28 +91,4 @@ def heb_neural_network():
         data_list.append(array)
     input_matrix_array = np.array(data_list)
     label_matrix_array = np.array(label_list)
-    w_matrix = np.zeros((input_matrix_array.shape[1], len(label_translator_dict)))
-    for i_index, _ in enumerate(input_matrix_array):
-        expected_vector = label_matrix_array[i_index:i_index + 1]
-        delta_w = np.matmul(np.transpose(input_matrix_array[i_index:i_index + 1]), expected_vector)
-        w_matrix += delta_w
-
-    c = 0
-    t = 0
-    for i_index in range(input_matrix_array.shape[0]):
-        input_vector = input_matrix_array[i_index:i_index + 1]
-        predict_vector = np.matmul(input_vector, w_matrix)
-        for i in range(len(predict_vector[0])):
-            if predict_vector[0][i] < 0:
-                predict_vector[0][i] = -1
-            elif predict_vector[0][i] > 0:
-                predict_vector[0][i] = 1
-            else:
-                predict_vector[0][i] = 0
-        _, eye_matrix_index = np.unravel_index(predict_vector.argmax(), predict_vector.shape)
-        label_array_slice = label_matrix_array[i_index:i_index + 1]
-        _, matrix_index = np.unravel_index(label_array_slice.argmax(), label_array_slice.shape)
-        c += 1
-        if (predict_vector[0] == label_matrix_array[i_index]).all():
-            t += 1
-        print(t / c)
+    return input_matrix_array, label_matrix_array, label_translator_dict
